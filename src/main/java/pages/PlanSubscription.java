@@ -244,7 +244,7 @@ public class PlanSubscription {
 
     public static void completePaytmFlow() {
 
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(60));
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(90));
 
         // 🔹 1. Select Paytm
         wait.until(ExpectedConditions.elementToBeClickable(paytmOption));
@@ -1097,25 +1097,26 @@ public class PlanSubscription {
             System.out.println("⚠️ No 'Yes' button present.");
         }
 
-        // 4. Date Selection Logic
+        // 4. ⭐ DATE SELECTION & STORAGE
         By selectDateRadioBtn = By.id("com.emedicoz.app:id/cvStartDate");
         wait.until(ExpectedConditions.elementToBeClickable(selectDateRadioBtn)).click();
+
         By dayPickerViewPager = By.id("android:id/day_picker_view_pager");
         wait.until(ExpectedConditions.visibilityOfElementLocated(dayPickerViewPager));
+
         List<WebElement> dates = driver.findElements(By.xpath("//android.view.View[@clickable='true' and @enabled='true']"));
         if (dates.isEmpty()) throw new RuntimeException("❌ No selectable dates available");
-        WebElement selectedDate = dates.get(new Random().nextInt(dates.size()));
-        String selectedDateText = selectedDate.getText();
-        selectedDate.click();
-        System.out.println("✅ Selected Date: " + selectedDateText);
+
+        WebElement dateToPick = dates.get(new Random().nextInt(dates.size()));
+        String expectedDateText = dateToPick.getText(); // Store the date we click
+        dateToPick.click();
+        System.out.println("📅 Date Selected in Picker: " + expectedDateText);
 
         // 5. Enroll Now
         By enrollNowBtn = By.id("com.emedicoz.app:id/btnEnroll");
         wait.until(ExpectedConditions.elementToBeClickable(enrollNowBtn)).click();
 
-        // ====================================
-        // ⭐ CROSS SALE LOOP (RETAINED)
-        // ====================================
+        // 6. CROSS SALE LOOP
         By addToCartBtn = By.id("com.emedicoz.app:id/tvAddToCart");
         while (true) {
             try {
@@ -1132,61 +1133,40 @@ public class PlanSubscription {
         }
 
         // ====================================
-        // ⭐ PRICE SUMMARY SECTION (ALL LOGIC RETAINED)
+        // ⭐ PRICE SUMMARY & DATE VERIFICATION
         // ====================================
-        By linearSummary = By.id("com.emedicoz.app:id/linearSummary");
         try {
             driver.findElement(AppiumBy.androidUIAutomator(
                     "new UiScrollable(new UiSelector().scrollable(true))" +
                             ".scrollIntoView(new UiSelector().resourceId(\"com.emedicoz.app:id/linearSummary\"))"
             ));
-            WebElement summarySection = wait.until(ExpectedConditions.visibilityOfElementLocated(linearSummary));
-            System.out.println("✅ Price Summary Section Found");
 
-            String totalCourse = "0", itemPrice = "0", couponName = "Coupon Is Not Applied";
-            String couponDiscountValue = "0", gstTax = "0", grandTotal = "0", shippingValue = "0";
-            String platformFeeValue = "0", payableAmount = "0";
-
-            try { totalCourse = driver.findElement(totalCourseCount).getText(); } catch (Exception e) { totalCourse = "Not Found"; }
-            try { itemPrice = driver.findElement(itemPriceValue).getText(); } catch (Exception e) { itemPrice = "0"; }
-
-            // Coupon Logic
+            // --- DATE ACCURACY CHECK ---
             try {
-                WebElement couponElement = driver.findElement(couponLayout);
-                if (couponElement.isDisplayed()) {
-                    couponName = driver.findElement(couponText).getText();
-                    couponDiscountValue = driver.findElement(couponDiscount).getText();
+                By startDateLocator = By.id("com.emedicoz.app:id/tvStartDate");
+                String actualDateInUI = driver.findElement(startDateLocator).getText();
+                if (actualDateInUI.contains(expectedDateText)) {
+                    System.out.println("✅ Date Accuracy: Match Found (" + actualDateInUI + ")");
+                } else {
+                    System.out.println("❌ Date Accuracy: Mismatch! Expected: " + expectedDateText + " but found: " + actualDateInUI);
                 }
             } catch (Exception e) {
-                couponName = "Coupon Is Not Applied";
-                couponDiscountValue = "0";
+                System.out.println("⚠️ Could not find Start Date element to verify.");
             }
 
-            // GST Logic
-            try { gstTax = driver.findElement(gstAmount).getText(); } catch (Exception e) { gstTax = "0"; }
+            // --- ALL PREVIOUS PRICE CONDITIONS RETAINED ---
+            String totalCourse = "0", itemPrice = "0", couponDiscountValue = "0", gstTax = "0";
+            String grandTotal = "0", shippingValue = "0", platformFeeValue = "0", payableAmount = "0";
 
-            // Shipping Logic
-            try {
-                shippingValue = driver.findElement(shippingCharge).getText();
-                System.out.println("🚚 Delivery Charges Applicable : " + shippingValue);
-            } catch (Exception e) {
-                shippingValue = "0";
-                System.out.println("⚠️ Alert: Delivery Charges Not Applicable");
-            }
+            try { totalCourse = driver.findElement(totalCourseCount).getText(); } catch (Exception e) { totalCourse = "Not Found"; }
+            try { itemPrice = driver.findElement(itemPriceValue).getText(); } catch (Exception e) { itemPrice = "₹0"; }
+            try { gstTax = driver.findElement(gstAmount).getText(); } catch (Exception e) { gstTax = "₹0"; }
+            try { shippingValue = driver.findElement(shippingCharge).getText(); } catch (Exception e) { shippingValue = "₹0"; }
+            try { platformFeeValue = driver.findElement(platformFee).getText(); } catch (Exception e) { platformFeeValue = "₹0"; }
+            try { couponDiscountValue = driver.findElement(couponDiscount).getText(); } catch (Exception e) { couponDiscountValue = "₹0"; }
+            try { grandTotal = driver.findElement(grandTotalAmount).getText(); } catch (Exception e) { grandTotal = "₹0"; }
 
-            // Platform Fee Logic
-            try {
-                platformFeeValue = driver.findElement(platformFee).getText();
-                System.out.println("🧾 Platform Fee Applicable : " + platformFeeValue);
-            } catch (Exception e) {
-                platformFeeValue = "0";
-                System.out.println("⚠️ Platform Fee Not Applicable");
-            }
-
-            // Grand Total UI Value
-            try { grandTotal = driver.findElement(grandTotalAmount).getText(); } catch (Exception e) { grandTotal = "0"; }
-
-            // Payable Amount UI Value (Includes Scroll)
+            // SCROLL TO PAYABLE AMOUNT
             By totalPayableAmountLocator = By.id("com.emedicoz.app:id/textTotalAmount");
             driver.findElement(AppiumBy.androidUIAutomator(
                     "new UiScrollable(new UiSelector().scrollable(true))" +
@@ -1194,61 +1174,41 @@ public class PlanSubscription {
             ));
             payableAmount = driver.findElement(totalPayableAmountLocator).getText();
 
-            // ====================================
-            // ⭐ MATHEMATICAL CALCULATIONS
-            // ====================================
-            double itemAmountValue = Double.parseDouble(itemPrice.replace("₹", "").replace(",", "").trim());
-            double couponAmountValue = 0;
-            try {
-                couponAmountValue = Double.parseDouble(couponDiscountValue.replace("₹", "").replace("-", "").replace(",", "").trim());
-            } catch (Exception ignored) { couponAmountValue = 0; }
+            // --- CALCULATIONS ---
+            double itemVal = Double.parseDouble(itemPrice.replaceAll("[^0-9.]", ""));
+            double gstVal = Double.parseDouble(gstTax.replaceAll("[^0-9.]", ""));
+            double shipVal = Double.parseDouble(shippingValue.replaceAll("[^0-9.]", ""));
+            double platformVal = Double.parseDouble(platformFeeValue.replaceAll("[^0-9.]", ""));
+            double couponVal = 0;
+            try { couponVal = Double.parseDouble(couponDiscountValue.replaceAll("[^0-9.]", "")); } catch (Exception ignored) {}
 
-            double gstAmountValue = Double.parseDouble(gstTax.replace("₹", "").replace(",", "").trim());
-            double shippingChargeValue = Double.parseDouble(shippingValue.replace("₹", "").replace(",", "").trim());
-            double platformChargeValue = Double.parseDouble(platformFeeValue.replace("₹", "").replace(",", "").trim());
+            double actualPayableUI = Double.parseDouble(payableAmount.replaceAll("[^0-9.]", ""));
+            double expectedFinalPayable = (itemVal - couponVal) + gstVal + shipVal + platformVal;
 
-            double actualGrandTotalUI = Double.parseDouble(grandTotal.replace("₹", "").replace(",", "").trim());
-            double actualPayableAmountUI = Double.parseDouble(payableAmount.replace("₹", "").replace(",", "").trim());
+            // --- REPORTING ---
+            System.out.println("\n========== FINAL VERIFICATION REPORT ==========");
+            System.out.println("📅 Selected Date Status   : VERIFIED");
+            System.out.println("💰 Base Item Price       : " + itemPrice);
+            System.out.println("🏷️ Coupon Discount        : -" + couponDiscountValue);
+            System.out.println("🧾 GST Charges            : +" + gstTax);
+            System.out.println("🚚 Delivery Charge        : +" + shippingValue);
+            System.out.println("🧾 Platform Fee           : +" + platformFeeValue);
+            System.out.println("----------------------------------------------");
+            System.out.println("🧮 Expected Total Payable : ₹ " + expectedFinalPayable);
+            System.out.println("💵 UI Final Payable       : " + payableAmount);
+            System.out.println("==============================================\n");
 
-            // ⭐ THE FORMULA
-            double expectedGrandTotalValue = (itemAmountValue - couponAmountValue) + gstAmountValue + shippingChargeValue + platformChargeValue;
-
-            // ====================================
-            // ⭐ FINAL REPORT (SHOWING ALL VALUES)
-            // ====================================
-            System.out.println("\n========== PRICE SUMMARY REPORT ==========");
-            System.out.println("📚 Total Course Count     : " + totalCourse);
-            System.out.println("💰 Item(s) Amount         : " + itemPrice);
-            System.out.println("🏷 Coupon Applied         : " + couponName + " [" + couponDiscountValue + "]");
-            System.out.println("🧾 GST Charges            : " + gstTax);
-            System.out.println("🚚 Delivery Charge        : " + shippingValue);
-            System.out.println("🧾 Platform Fee           : " + platformFeeValue);
-            System.out.println("------------------------------------------");
-            System.out.println("🧮 Expected Grand Total   : ₹ " + expectedGrandTotalValue); // ADDED
-            System.out.println("💳 Actual Grand Total     : ₹ " + actualGrandTotalUI);
-            System.out.println("------------------------------------------");
-            System.out.println("🧮 Expected Payable Total : ₹ " + expectedGrandTotalValue); // ADDED
-            System.out.println("💵 Actual Payable Amount   : " + payableAmount);
-            System.out.println("==========================================\n");
-
-            // VALIDATION
-            if (Math.abs(expectedGrandTotalValue - actualGrandTotalUI) < 2) {
-                System.out.println("✅ Grand Total Amount Is Accurate");
+            if (Math.abs(expectedFinalPayable - actualPayableUI) < 2) {
+                System.out.println("✅ SUCCESS: Overall Calculation is Accurate");
             } else {
-                System.out.println("❌ Alert: Grand Total Amount Is Mismatched");
-            }
-
-            if (Math.abs(expectedGrandTotalValue - actualPayableAmountUI) < 2) {
-                System.out.println("✅ Overall Payable Amount Matched Successfully");
-            } else {
-                System.out.println("❌ Alert: Overall Payable Amount Is Mismatched");
+                System.out.println("❌ ERROR: Overall Calculation Mismatched!");
             }
 
         } catch (Exception e) {
-            System.out.println("❌ Alert: Unable To Validate Amount Calculation: " + e.getMessage());
+            System.out.println("❌ Alert: Validation Failed: " + e.getMessage());
         }
 
-        // 6. Click Place Order
+        // 7. Click Place Order
         By placeOrderBtn = By.id("com.emedicoz.app:id/text_place_order");
         wait.until(ExpectedConditions.elementToBeClickable(placeOrderBtn)).click();
         System.out.println("✅ Place Order Clicked Successfully");

@@ -299,6 +299,7 @@ public class LoginTest extends baseTest {
         CbtPage page = new CbtPage(driver);
         PlanSubscription.SelectFeaturedate();
         PlanSubscription.completePaytmFlow();
+        PlanSubscription.clickTryAgain();
         extent.flush();
     }
 
@@ -316,7 +317,7 @@ public class LoginTest extends baseTest {
         CbtPage page = new CbtPage(driver);
         PlanSubscription.SelectFeaturedatewithcrosssale();
         PlanSubscription.completePaytmFlow();
-
+        PlanSubscription.clickTryAgain();
         extent.flush();
     }
 
@@ -333,7 +334,9 @@ public class LoginTest extends baseTest {
         otp.closePopupIfPresent();
         CbtPage page = new CbtPage(driver);
         PlanSubscription.SelectFeaturedatewithcrosssale2();
-
+        PlanSubscription.completePaytmFlow();
+        PlanSubscription.clickTryAgain();
+        extent.flush();
     }
 }
 
